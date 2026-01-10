@@ -1,0 +1,68 @@
+# =============================================================================
+# Docker Compose for Whale Tracker Admin Frontend
+# =============================================================================
+# Usage:
+#   Development:  docker-compose up --build
+#   Production:   docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+#   Stop:         docker-compose down
+#   Logs:         docker-compose logs -f
+# =============================================================================
+
+version: '3.8'
+
+services:
+  # ---------------------------------------------------------------------------
+  # Whale Tracker Admin Frontend
+  # ---------------------------------------------------------------------------
+  whale-tracker-frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-https://helius.sarislabs.com}
+        - NEXT_PUBLIC_SSE_URL=${NEXT_PUBLIC_SSE_URL:-https://helius.sarislabs.com/stream/all}
+        - NEXT_PUBLIC_SSE_TRANSFERS_URL=${NEXT_PUBLIC_SSE_TRANSFERS_URL:-https://helius.sarislabs.com/stream/transfers}
+        - NEXT_PUBLIC_SSE_COORDINATED_URL=${NEXT_PUBLIC_SSE_COORDINATED_URL:-https://helius.sarislabs.com/stream/coordinated}
+        - NEXTAUTH_URL=${NEXTAUTH_URL:-http://localhost:3000}
+    container_name: whale-tracker-frontend
+    restart: unless-stopped
+    ports:
+      - "${PORT:-3000}:3000"
+    environment:
+      # NextAuth Configuration
+      - NEXTAUTH_URL=${NEXTAUTH_URL:-http://localhost:3000}
+      - NEXTAUTH_SECRET=${NEXTAUTH_SECRET:?NEXTAUTH_SECRET is required}
+      
+      # Backend API Configuration
+      - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-https://helius.sarislabs.com}
+      - BACKEND_AUTH_URL=${BACKEND_AUTH_URL:-https://helius.sarislabs.com/api/auth}
+      
+      # SSE Stream Endpoints
+      - NEXT_PUBLIC_SSE_URL=${NEXT_PUBLIC_SSE_URL:-https://helius.sarislabs.com/stream/all}
+      - NEXT_PUBLIC_SSE_TRANSFERS_URL=${NEXT_PUBLIC_SSE_TRANSFERS_URL:-https://helius.sarislabs.com/stream/transfers}
+      - NEXT_PUBLIC_SSE_COORDINATED_URL=${NEXT_PUBLIC_SSE_COORDINATED_URL:-https://helius.sarislabs.com/stream/coordinated}
+      
+      # Node environment
+      - NODE_ENV=production
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    networks:
+      - whale-tracker-network
+    # Resource limits for production
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 512M
+        reservations:
+          cpus: '0.25'
+          memory: 256M
+
+networks:
+  whale-tracker-network:
+    driver: bridge
+    name: whale-tracker-network

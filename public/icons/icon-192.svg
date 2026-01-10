@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="192" height="192" viewBox="0 0 192 192">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#0f172a"/>
+      <stop offset="100%" style="stop-color:#1e293b"/>
+    </linearGradient>
+    <linearGradient id="whale" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#3b82f6"/>
+      <stop offset="100%" style="stop-color:#8b5cf6"/>
+    </linearGradient>
+  </defs>
+  <!-- Background -->
+  <rect width="192" height="192" rx="32" fill="url(#bg)"/>
+  <!-- Whale icon -->
+  <g transform="translate(32, 48)">
+    <!-- Body -->
+    <ellipse cx="64" cy="48" rx="56" ry="36" fill="url(#whale)"/>
+    <!-- Tail -->
+    <path d="M8 48 Q-8 32 8 16 Q24 32 8 48" fill="url(#whale)"/>
+    <!-- Eye -->
+    <circle cx="100" cy="40" r="6" fill="#0f172a"/>
+    <circle cx="102" cy="38" r="2" fill="#fff"/>
+    <!-- Water spout -->
+    <path d="M80 12 Q84 0 88 12 M76 8 Q80 -4 84 8 M84 8 Q88 -4 92 8" 
+          stroke="#60a5fa" stroke-width="3" fill="none" stroke-linecap="round"/>
+  </g>
+  <!-- Chart bars -->
+  <g transform="translate(40, 130)">
+    <rect x="0" y="20" width="16" height="24" rx="2" fill="#22c55e" opacity="0.8"/>
+    <rect x="24" y="12" width="16" height="32" rx="2" fill="#22c55e" opacity="0.9"/>
+    <rect x="48" y="4" width="16" height="40" rx="2" fill="#22c55e"/>
+    <rect x="72" y="16" width="16" height="28" rx="2" fill="#ef4444" opacity="0.9"/>
+    <rect x="96" y="8" width="16" height="36" rx="2" fill="#22c55e" opacity="0.85"/>
+  </g>
+</svg>

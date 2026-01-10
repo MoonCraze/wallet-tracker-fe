@@ -17,7 +17,6 @@ export interface CoordinatedTrade {
 export interface CoordinatedTradeWithMeta extends CoordinatedTrade {
   isNew?: boolean;
   processedAt?: Date;
-  severity?: "low" | "medium" | "high" | "critical";
 }
 
 /**
@@ -33,32 +32,6 @@ export function parseWalletAddresses(trade: CoordinatedTrade): string[] {
     return Array.isArray(parsed) ? parsed : [];
   } catch {
     return [];
-  }
-}
-
-/**
- * Get severity level based on wallet count
- */
-export function getSeverityLevel(walletCount: number): "low" | "medium" | "high" | "critical" {
-  if (walletCount >= 10) return "critical";
-  if (walletCount >= 7) return "high";
-  if (walletCount >= 5) return "medium";
-  return "low";
-}
-
-/**
- * Get severity color based on level
- */
-export function getSeverityColor(severity: string): string {
-  switch (severity) {
-    case "critical":
-      return "bg-red-500";
-    case "high":
-      return "bg-orange-500";
-    case "medium":
-      return "bg-yellow-500";
-    default:
-      return "bg-blue-500";
   }
 }
 

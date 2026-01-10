@@ -2,7 +2,7 @@
 
 import { memo, useState, useMemo } from "react";
 import { format, formatDistanceToNow } from "date-fns";
-import { ExternalLink, Users, Clock, ChevronDown, AlertTriangle, Copy, Check } from "lucide-react";
+import { ExternalLink, Users, Clock, ChevronDown, Copy, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -25,8 +25,6 @@ import { cn, truncateAddress, getSolscanUrl, copyToClipboard } from "@/lib/utils
 import type { CoordinatedTrade } from "@/lib/types/coordinated";
 import {
   parseWalletAddresses,
-  getSeverityLevel,
-  getSeverityColor,
 } from "@/lib/types/coordinated";
 import { EmptyState } from "@/components/shared/ErrorDisplay";
 
@@ -84,8 +82,6 @@ export const CoordinatedTradeCard = memo(function CoordinatedTradeCard({ trade, 
   
   // Memoize expensive computations
   const wallets = useMemo(() => parseWalletAddresses(trade), [trade]);
-  const severity = useMemo(() => getSeverityLevel(trade.uniqueWalletCount), [trade.uniqueWalletCount]);
-  const severityColor = useMemo(() => getSeverityColor(severity), [severity]);
 
   return (
     <Card
@@ -98,13 +94,6 @@ export const CoordinatedTradeCard = memo(function CoordinatedTradeCard({ trade, 
         <CollapsibleTrigger asChild>
           <CardHeader className="cursor-pointer pb-3 hover:bg-muted/50 transition-colors">
             <div className="flex items-start gap-3">
-              {/* Severity indicator */}
-              <div
-                className={cn(
-                  "mt-1 h-10 w-1.5 rounded-full",
-                  severityColor
-                )}
-              />
 
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 mb-1 flex-wrap">
@@ -125,12 +114,6 @@ export const CoordinatedTradeCard = memo(function CoordinatedTradeCard({ trade, 
                   >
                     <ExternalLink className="h-3 w-3" />
                   </Button>
-                  {severity === "critical" && (
-                    <Badge variant="destructive" className="ml-auto">
-                      <AlertTriangle className="mr-1 h-3 w-3" />
-                      Critical
-                    </Badge>
-                  )}
                 </div>
 
                 <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
@@ -198,10 +181,6 @@ export const CoordinatedTradeCard = memo(function CoordinatedTradeCard({ trade, 
                 <p className="font-medium">
                   {format(new Date(trade.triggeredAt), "MMM dd, HH:mm:ss")}
                 </p>
-              </div>
-              <div>
-                <span className="text-muted-foreground">Severity:</span>
-                <p className="font-medium capitalize">{severity}</p>
               </div>
             </div>
           </CardContent>

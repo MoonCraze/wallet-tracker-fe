@@ -16,6 +16,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Wallet,
+  Wallet2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -42,6 +43,7 @@ const navigation: NavItem[] = [
   { name: "Transfers", href: "/transfers", icon: ArrowLeftRight, protected: true },
   { name: "Coordinated", href: "/coordinated", icon: Users, protected: true },
   { name: "Analytics", href: "/analytics", icon: BarChart3, protected: true },
+  { name: "Wallets", href: "/wallets", icon: Wallet2, protected: true },
   { name: "Config", href: "/config", icon: Settings, protected: true },
 ];
 

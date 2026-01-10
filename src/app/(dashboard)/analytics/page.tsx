@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from "react";
 import { useSession } from "next-auth/react";
-import { format, subHours, startOfHour } from "date-fns";
+import { format, subHours, startOfHour, startOfDay, differenceInHours } from "date-fns";
 import {
   RefreshCw,
   TrendingUp,
@@ -58,7 +58,14 @@ export default function AnalyticsPage() {
   useEffect(() => {
     if (session?.accessToken) {
       fetchStats().catch(console.error);
-      fetchTransfers(500).catch(console.error);
+      
+      // Fetch transfers from last 12 hours
+      const now = new Date();
+      const twelveHoursAgo = subHours(now, 12);
+      fetchTransfers({
+        startTime: twelveHoursAgo.toISOString(),
+        endTime: now.toISOString(),
+      }).catch(console.error);
     }
   }, [session, fetchStats, fetchTransfers]);
 
@@ -68,31 +75,43 @@ export default function AnalyticsPage() {
     const sells = transfers.filter((t) => t.side === "SELL");
 
     // Group by hour for timeline
-    const hourlyMap = new Map<string, { buys: number; sells: number; total: number }>();
+    const hourlyMap = new Map<number, { timestamp: Date; buys: number; sells: number; total: number }>();
     const now = new Date();
+    const twelveHoursAgo = subHours(now, 12);
 
-    // Initialize last 24 hours
-    for (let i = 23; i >= 0; i--) {
-      const hour = startOfHour(subHours(now, i));
-      const key = format(hour, "HH:mm");
-      hourlyMap.set(key, { buys: 0, sells: 0, total: 0 });
+    // Initialize last 12 hours with proper timestamps
+    for (let i = 11; i >= 0; i--) {
+      const hourDate = startOfHour(subHours(now, i));
+      const key = hourDate.getTime();
+      hourlyMap.set(key, { timestamp: hourDate, buys: 0, sells: 0, total: 0 });
     }
 
+    // Filter transfers from last 12 hours only
+    const recentTransfers = transfers.filter((t) => {
+      const transferDate = new Date(t.timestamp);
+      return transferDate >= twelveHoursAgo && transferDate <= now;
+    });
+
     // Count transfers per hour
-    transfers.forEach((t) => {
-      const hour = format(startOfHour(new Date(t.timestamp)), "HH:mm");
-      if (hourlyMap.has(hour)) {
-        const current = hourlyMap.get(hour)!;
+    recentTransfers.forEach((t) => {
+      const hourDate = startOfHour(new Date(t.timestamp));
+      const key = hourDate.getTime();
+      if (hourlyMap.has(key)) {
+        const current = hourlyMap.get(key)!;
         if (t.side === "BUY") current.buys++;
         else current.sells++;
         current.total++;
       }
     });
 
-    const hourlyData = Array.from(hourlyMap.entries()).map(([hour, data]) => ({
-      hour,
-      ...data,
-    }));
+    const hourlyData = Array.from(hourlyMap.values())
+      .sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime())
+      .map((data) => ({
+        hour: format(data.timestamp, "MMM d HH:mm"),
+        buys: data.buys,
+        sells: data.sells,
+        total: data.total,
+      }));
 
     // Top wallets by activity
     const walletActivity = new Map<string, number>();
@@ -146,7 +165,15 @@ export default function AnalyticsPage() {
   const handleRefresh = async () => {
     setIsRefreshing(true);
     try {
-      await Promise.all([fetchStats(), fetchTransfers(500)]);
+      const now = new Date();
+      const twelveHoursAgo = subHours(now, 12);
+      await Promise.all([
+        fetchStats(),
+        fetchTransfers({
+          startTime: twelveHoursAgo.toISOString(),
+          endTime: now.toISOString(),
+        })
+      ]);
       toast.success("Analytics refreshed");
     } catch (err) {
       toast.error("Failed to refresh analytics");
@@ -220,7 +247,7 @@ export default function AnalyticsPage() {
           {/* Activity Timeline */}
           <Card className="lg:col-span-2">
             <CardHeader>
-              <CardTitle>Activity Timeline (Last 24 Hours)</CardTitle>
+              <CardTitle>Activity Timeline (Last 12 Hours)</CardTitle>
               <CardDescription>Buy and sell orders per hour</CardDescription>
             </CardHeader>
             <CardContent>

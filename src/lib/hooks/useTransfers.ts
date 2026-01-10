@@ -15,11 +15,15 @@ export function useTransfers() {
   const [error, setError] = useState<string | null>(null);
   const isMountedRef = useRef(true);
 
-  const fetchTransfers = useCallback(async (limit: number = 50) => {
+  const fetchTransfers = useCallback(async (options: {
+    limit?: number;
+    startTime?: string;
+    endTime?: string;
+  } = {}) => {
     setLoading(true);
     setError(null);
     try {
-      const data = await getTransfers(limit);
+      const data = await getTransfers(options);
       // Only update state if component is still mounted
       if (isMountedRef.current) {
         setTransfers(data);

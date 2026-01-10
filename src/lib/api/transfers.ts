@@ -5,11 +5,31 @@ import type { CoordinatedTrade } from "../types/coordinated";
 /**
  * Fetch transfers from the database
  * Requires authentication
+ * 
+ * @param options - Query options
+ * @param options.limit - Maximum number of transfers (ignored when using time filters)
+ * @param options.startTime - Filter transfers after this time (ISO 8601)
+ * @param options.endTime - Filter transfers before this time (ISO 8601)
+ * 
+ * Note: Backend ignores limit parameter when startTime or endTime is provided
  */
-export async function getTransfers(limit: number = 50): Promise<TransferEvent[]> {
-  const { data } = await apiClient.get("/dev/db/transfers", {
-    params: { limit },
-  });
+export async function getTransfers(options: {
+  limit?: number;
+  startTime?: string;
+  endTime?: string;
+} = {}): Promise<TransferEvent[]> {
+  const { limit = 50, startTime, endTime } = options;
+  const params: Record<string, any> = {};
+  
+  // Only add limit if no time filters are provided (backend ignores it otherwise)
+  if (!startTime && !endTime) {
+    params.limit = limit;
+  }
+  
+  if (startTime) params.startTime = startTime;
+  if (endTime) params.endTime = endTime;
+  
+  const { data } = await apiClient.get("/dev/db/transfers", { params });
   return Array.isArray(data) ? data : data.data || [];
 }
 

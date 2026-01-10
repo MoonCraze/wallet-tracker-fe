@@ -50,7 +50,7 @@ import {
 import { cn, formatCurrency, formatTimeAgo, getSolscanUrl } from "@/lib/utils";
 import type { TransferEvent } from "@/lib/types/transfer";
 import type { CoordinatedTrade } from "@/lib/types/coordinated";
-import { parseWalletAddresses } from "@/lib/types/coordinated";
+import { parseWalletAddresses, getTradeTimestamp, getWalletCount } from "@/lib/types/coordinated";
 
 type StreamType = "all" | "transfers" | "coordinated";
 type FeedItem =
@@ -113,10 +113,10 @@ export default function LiveFeedPage() {
     setFeedItems((prev) => {
       // Check for duplicate coordinated trades
       if (item.type === "coordinated") {
-        const tradeKey = `${item.data.tokenAddress}-${item.data.triggeredAt}`;
+        const tradeKey = `${item.data.tokenAddress}-${getTradeTimestamp(item.data)}`;
         const isDuplicate = prev.some(
           (i) => i.type === "coordinated" && 
-            `${i.data.tokenAddress}-${(i.data as CoordinatedTrade).triggeredAt}` === tradeKey
+            `${i.data.tokenAddress}-${getTradeTimestamp(i.data as CoordinatedTrade)}` === tradeKey
         );
         if (isDuplicate) {
           console.log("[LiveFeed] Duplicate coordinated trade ignored:", tradeKey);
@@ -504,7 +504,7 @@ function TransferFeedItem({ data, onClick }: { data: TransferEvent; onClick?: ()
 
 function CoordinatedFeedItem({ data, onClick }: { data: CoordinatedTrade; onClick?: () => void }) {
   // Parse wallet addresses if needed
-  const walletCount = data.uniqueWalletCount || 0;
+  const walletCount = getWalletCount(data);
   
   return (
     <div
@@ -529,15 +529,22 @@ function CoordinatedFeedItem({ data, onClick }: { data: CoordinatedTrade; onClic
           <span className="text-yellow-600 font-medium">
             {walletCount} wallets
           </span>
-          <span className="text-muted-foreground">
-            Window: {new Date(data.windowStart).toLocaleTimeString()} - {new Date(data.windowEnd).toLocaleTimeString()}
-          </span>
+          {data.windowStart && data.windowEnd && (
+            <span className="text-muted-foreground">
+              Window: {new Date(data.windowStart).toLocaleTimeString()} - {new Date(data.windowEnd).toLocaleTimeString()}
+            </span>
+          )}
+          {data.timeWindowSeconds && (
+            <span className="text-muted-foreground">
+              {data.timeWindowSeconds}s window
+            </span>
+          )}
         </div>
       </div>
 
       <div className="text-right shrink-0">
         <p className="text-xs text-muted-foreground">
-          {formatTimeAgo(new Date(data.triggeredAt))}
+          {formatTimeAgo(new Date(getTradeTimestamp(data)))}
         </p>
       </div>
     </div>
@@ -658,7 +665,7 @@ function CoordinatedDetailDialog({ data }: { data: CoordinatedTrade }) {
         <div className="space-y-3">
           <div>
             <Label className="text-muted-foreground text-xs uppercase tracking-wider">Detected At</Label>
-            <p className="font-medium">{format(new Date(data.triggeredAt), "PPpp")}</p>
+            <p className="font-medium">{format(new Date(getTradeTimestamp(data)), "PPpp")}</p>
           </div>
           
           <Separator />
@@ -681,22 +688,31 @@ function CoordinatedDetailDialog({ data }: { data: CoordinatedTrade }) {
           
           <Separator />
           
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <Label className="text-muted-foreground text-xs uppercase tracking-wider">Window Start</Label>
-              <p className="font-medium">{format(new Date(data.windowStart), "PPpp")}</p>
+          {data.windowStart && data.windowEnd && (
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label className="text-muted-foreground text-xs uppercase tracking-wider">Window Start</Label>
+                <p className="font-medium">{format(new Date(data.windowStart), "PPpp")}</p>
+              </div>
+              <div>
+                <Label className="text-muted-foreground text-xs uppercase tracking-wider">Window End</Label>
+                <p className="font-medium">{format(new Date(data.windowEnd), "PPpp")}</p>
+              </div>
             </div>
+          )}
+          
+          {data.timeWindowSeconds && (
             <div>
-              <Label className="text-muted-foreground text-xs uppercase tracking-wider">Window End</Label>
-              <p className="font-medium">{format(new Date(data.windowEnd), "PPpp")}</p>
+              <Label className="text-muted-foreground text-xs uppercase tracking-wider">Time Window</Label>
+              <p className="font-medium">{data.timeWindowSeconds} seconds</p>
             </div>
-          </div>
+          )}
           
           <Separator />
           
           <div>
             <Label className="text-muted-foreground text-xs uppercase tracking-wider">
-              Participating Wallets ({data.uniqueWalletCount})
+              Participating Wallets ({getWalletCount(data)})
             </Label>
             <div className="mt-2 space-y-2 max-h-60 overflow-y-auto">
               {wallets.map((wallet, i) => (

@@ -3,12 +3,10 @@
 # =============================================================================
 # Usage:
 #   Development:  docker-compose up --build
-#   Production:   docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+#   Production:   docker-compose -f docker-compose.yml -f docker-compose.prod.yml up --build -d
 #   Stop:         docker-compose down
 #   Logs:         docker-compose logs -f
 # =============================================================================
-
-version: '3.8'
 
 services:
   # ---------------------------------------------------------------------------

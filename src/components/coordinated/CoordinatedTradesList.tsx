@@ -25,6 +25,8 @@ import { cn, truncateAddress, getSolscanUrl, copyToClipboard } from "@/lib/utils
 import type { CoordinatedTrade } from "@/lib/types/coordinated";
 import {
   parseWalletAddresses,
+  getTradeTimestamp,
+  getWalletCount,
 } from "@/lib/types/coordinated";
 import { EmptyState } from "@/components/shared/ErrorDisplay";
 
@@ -120,22 +122,29 @@ export const CoordinatedTradeCard = memo(function CoordinatedTradeCard({ trade, 
                   <span className="flex items-center gap-1">
                     <Users className="h-3 w-3" />
                     <span className="font-semibold text-foreground">
-                      {trade.uniqueWalletCount}
+                      {getWalletCount(trade)}
                     </span>
                     wallets
                   </span>
 
                   <span className="flex items-center gap-1">
                     <Clock className="h-3 w-3" />
-                    {formatDistanceToNow(new Date(trade.triggeredAt), {
+                    {formatDistanceToNow(new Date(getTradeTimestamp(trade)), {
                       addSuffix: true,
                     })}
                   </span>
 
-                  <Badge variant="outline" className="text-xs">
-                    {format(new Date(trade.windowStart), "HH:mm")} -{" "}
-                    {format(new Date(trade.windowEnd), "HH:mm")}
-                  </Badge>
+                  {trade.timeWindowSeconds && (
+                    <Badge variant="outline" className="text-xs">
+                      {trade.timeWindowSeconds}s window
+                    </Badge>
+                  )}
+                  {trade.windowStart && trade.windowEnd && (
+                    <Badge variant="outline" className="text-xs">
+                      {format(new Date(trade.windowStart), "HH:mm")} -{" "}
+                      {format(new Date(trade.windowEnd), "HH:mm")}
+                    </Badge>
+                  )}
                 </div>
               </div>
 
@@ -164,24 +173,46 @@ export const CoordinatedTradeCard = memo(function CoordinatedTradeCard({ trade, 
 
             {/* Additional details */}
             <div className="mt-3 grid grid-cols-2 gap-4 text-xs">
-              <div>
-                <span className="text-muted-foreground">Window Start:</span>
-                <p className="font-medium">
-                  {format(new Date(trade.windowStart), "MMM dd, HH:mm:ss")}
-                </p>
-              </div>
-              <div>
-                <span className="text-muted-foreground">Window End:</span>
-                <p className="font-medium">
-                  {format(new Date(trade.windowEnd), "MMM dd, HH:mm:ss")}
-                </p>
-              </div>
-              <div>
-                <span className="text-muted-foreground">Triggered At:</span>
-                <p className="font-medium">
-                  {format(new Date(trade.triggeredAt), "MMM dd, HH:mm:ss")}
-                </p>
-              </div>
+              {trade.timestamp && (
+                <div className="col-span-2">
+                  <span className="text-muted-foreground">Detected At:</span>
+                  <p className="font-medium">
+                    {format(new Date(getTradeTimestamp(trade)), "MMM dd, HH:mm:ss")}
+                  </p>
+                </div>
+              )}
+              {trade.windowStart && (
+                <div>
+                  <span className="text-muted-foreground">Window Start:</span>
+                  <p className="font-medium">
+                    {format(new Date(trade.windowStart), "MMM dd, HH:mm:ss")}
+                  </p>
+                </div>
+              )}
+              {trade.windowEnd && (
+                <div>
+                  <span className="text-muted-foreground">Window End:</span>
+                  <p className="font-medium">
+                    {format(new Date(trade.windowEnd), "MMM dd, HH:mm:ss")}
+                  </p>
+                </div>
+              )}
+              {trade.pattern && (
+                <div>
+                  <span className="text-muted-foreground">Pattern:</span>
+                  <p className="font-medium capitalize">
+                    {trade.pattern.replace(/_/g, ' ')}
+                  </p>
+                </div>
+              )}
+              {trade.timeWindowSeconds && (
+                <div>
+                  <span className="text-muted-foreground">Time Window:</span>
+                  <p className="font-medium">
+                    {trade.timeWindowSeconds} seconds
+                  </p>
+                </div>
+              )}
             </div>
           </CardContent>
         </CollapsibleContent>

@@ -62,7 +62,7 @@ export default function TransfersPage() {
   // Fetch transfers on mount
   useEffect(() => {
     if (session?.accessToken) {
-      fetchTransfers(parseInt(limit)).catch((err) => {
+      fetchTransfers({ limit: parseInt(limit) }).catch((err) => {
         toast.error("Failed to load transfers", {
           description: err.message,
         });
@@ -87,7 +87,7 @@ export default function TransfersPage() {
   }, [transfers, deferredSearch, sideFilter]);
 
   const handleRefresh = () => {
-    fetchTransfers(parseInt(limit))
+    fetchTransfers({ limit: parseInt(limit) })
       .then(() => toast.success("Transfers refreshed"))
       .catch((err) => toast.error("Failed to refresh", { description: err.message }));
   };

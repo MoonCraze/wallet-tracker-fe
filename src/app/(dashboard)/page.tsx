@@ -18,6 +18,7 @@ import { useSSE } from "@/lib/hooks/useSSE";
 import { useStats } from "@/lib/hooks/useTransfers";
 import type { TransferEvent } from "@/lib/types/transfer";
 import type { CoordinatedTrade } from "@/lib/types/coordinated";
+import { getTradeTimestamp, getWalletCount } from "@/lib/types/coordinated";
 
 const MAX_LIVE_TRANSFERS = 50;
 const MAX_LIVE_COORDINATED = 20;
@@ -57,7 +58,7 @@ export default function DashboardPage() {
       if (isPaused) return;
       
       // Create a unique key for this coordinated trade
-      const tradeKey = `${data.tokenAddress}-${data.triggeredAt}`;
+      const tradeKey = `${data.tokenAddress}-${getTradeTimestamp(data)}`;
       
       // Check for duplicate using ref (synchronous, no delay)
       if (seenCoordinatedRef.current.has(tradeKey)) {
@@ -75,7 +76,7 @@ export default function DashboardPage() {
       
       // Show toast immediately (before state update)
       toast.warning(`Coordinated Trade Detected`, {
-        description: `${data.uniqueWalletCount} wallets trading ${data.tokenAddress.slice(0, 8)}...`,
+        description: `${getWalletCount(data)} wallets trading ${data.tokenAddress.slice(0, 8)}...`,
         duration: 5000,
       });
       

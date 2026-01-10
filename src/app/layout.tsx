@@ -39,7 +39,6 @@ export const metadata: Metadata = {
   ],
   authors: [{ name: "Saris Labs" }],
   robots: "noindex, nofollow",
-  manifest: "/manifest.json",
 };
 
 export default function RootLayout({

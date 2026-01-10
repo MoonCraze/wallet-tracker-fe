@@ -1,5 +1,5 @@
 import axios from "axios";
-import { getSession } from "next-auth/react";
+import { getSession, signOut } from "next-auth/react";
 
 /**
  * Axios instance configured for the backend API
@@ -12,6 +12,9 @@ const apiClient = axios.create({
     "Content-Type": "application/json",
   },
 });
+
+// Flag to prevent multiple simultaneous redirects on 401
+let isRedirectingToLogin = false;
 
 /**
  * Request interceptor - add JWT to protected requests
@@ -40,13 +43,29 @@ apiClient.interceptors.request.use(
  */
 apiClient.interceptors.response.use(
   (response) => response,
-  (error) => {
+  async (error) => {
     // Handle different error scenarios
     if (error.response?.status === 401) {
       // Token expired or invalid - redirect to login
       if (typeof window !== "undefined") {
-        // Clear any stale session data
-        window.location.href = "/login?error=session_expired";
+        // Prevent redirect if already on login page or already redirecting
+        const isOnLoginPage = window.location.pathname === "/login";
+        
+        if (!isOnLoginPage && !isRedirectingToLogin) {
+          isRedirectingToLogin = true;
+          
+          // Use NextAuth signOut to properly clear the session
+          // This prevents infinite reload loops by clearing session state first
+          try {
+            await signOut({ 
+              redirect: true,
+              callbackUrl: "/login?error=session_expired" 
+            });
+          } catch {
+            // Fallback: if signOut fails, do a manual redirect
+            window.location.href = "/login?error=session_expired";
+          }
+        }
       }
     }
     

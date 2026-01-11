@@ -31,7 +31,7 @@ export function useTransfersQuery(limit: number = 50) {
 
   return useQuery({
     queryKey: queryKeys.transfers(limit),
-    queryFn: () => getTransfers(limit),
+    queryFn: () => getTransfers({ limit }),
     enabled: !!session?.accessToken,
     staleTime: 30 * 1000, // Consider data fresh for 30 seconds
   });

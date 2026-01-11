@@ -6,7 +6,6 @@ export interface SystemConfig {
   coordinatedMinWallets: number;
   excludeTokens: string[];
   minAmount: number;
-  dedupBySignatureOnly: boolean;
   debugEvents: boolean;
   debugEventsVerbose: boolean;
 }
@@ -54,12 +53,6 @@ export const CONFIG_FIELDS: ConfigFieldMeta[] = [
     description: "Minimum token amount to track transfers",
     type: "number",
     min: 0,
-  },
-  {
-    key: "dedupBySignatureOnly",
-    label: "Dedup by Signature Only",
-    description: "Deduplicate transfers by signature only (ignore other fields)",
-    type: "boolean",
   },
   {
     key: "debugEvents",

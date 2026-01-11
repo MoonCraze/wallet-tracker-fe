@@ -11,6 +11,8 @@ import {
   Database,
   ArrowUpRight,
   ArrowDownRight,
+  Copy,
+  Check,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -29,6 +31,9 @@ import {
   Legend,
   Area,
   AreaChart,
+  ScatterChart,
+  Scatter,
+  ZAxis,
 } from "recharts";
 
 import { Header } from "@/components/dashboard/Header";
@@ -54,16 +59,26 @@ export default function AnalyticsPage() {
 
   const [isRefreshing, setIsRefreshing] = useState(false);
 
+  // Handle copying addresses to clipboard
+  const handleCopyAddress = async (address: string, type: "wallet" | "token") => {
+    try {
+      await navigator.clipboard.writeText(address);
+      toast.success(`${type === "wallet" ? "Wallet" : "Token"} address copied to clipboard`);
+    } catch (err) {
+      toast.error("Failed to copy address");
+    }
+  };
+
   // Fetch data on mount
   useEffect(() => {
     if (session?.accessToken) {
       fetchStats().catch(console.error);
       
-      // Fetch transfers from last 12 hours
+      // Fetch transfers from last 24 hours for comprehensive analytics
       const now = new Date();
-      const twelveHoursAgo = subHours(now, 12);
+      const twentyFourHoursAgo = subHours(now, 24);
       fetchTransfers({
-        startTime: twelveHoursAgo.toISOString(),
+        startTime: twentyFourHoursAgo.toISOString(),
         endTime: now.toISOString(),
       }).catch(console.error);
     }
@@ -74,7 +89,7 @@ export default function AnalyticsPage() {
     const buys = transfers.filter((t) => t.side === "BUY");
     const sells = transfers.filter((t) => t.side === "SELL");
 
-    // Group by hour for timeline
+    // Group by hour for timeline (last 12 hours for main chart)
     const hourlyMap = new Map<number, { timestamp: Date; buys: number; sells: number; total: number }>();
     const now = new Date();
     const twelveHoursAgo = subHours(now, 12);
@@ -86,7 +101,7 @@ export default function AnalyticsPage() {
       hourlyMap.set(key, { timestamp: hourDate, buys: 0, sells: 0, total: 0 });
     }
 
-    // Filter transfers from last 12 hours only
+    // Filter transfers from last 12 hours only for main timeline
     const recentTransfers = transfers.filter((t) => {
       const transferDate = new Date(t.timestamp);
       return transferDate >= twelveHoursAgo && transferDate <= now;
@@ -113,7 +128,7 @@ export default function AnalyticsPage() {
         total: data.total,
       }));
 
-    // Top wallets by activity
+    // Top wallets by activity (all 24h data)
     const walletActivity = new Map<string, number>();
     transfers.forEach((t) => {
       walletActivity.set(
@@ -130,7 +145,7 @@ export default function AnalyticsPage() {
         count,
       }));
 
-    // Top tokens by activity
+    // Top tokens by activity (all 24h data)
     const tokenActivity = new Map<string, number>();
     transfers.forEach((t) => {
       tokenActivity.set(
@@ -147,6 +162,93 @@ export default function AnalyticsPage() {
         count,
       }));
 
+    // NEW: Top tokens by unique wallets
+    const tokenToWallets = new Map<string, Set<string>>();
+    transfers.forEach((t) => {
+      if (!tokenToWallets.has(t.tokenAddress)) {
+        tokenToWallets.set(t.tokenAddress, new Set());
+      }
+      tokenToWallets.get(t.tokenAddress)!.add(t.walletAddress);
+    });
+    const topTokensByUniqueWallets = Array.from(tokenToWallets.entries())
+      .map(([token, wallets]) => ({
+        tokenAddress: token,
+        shortAddress: `${token.slice(0, 6)}...${token.slice(-4)}`,
+        uniqueWalletCount: wallets.size,
+      }))
+      .sort((a, b) => b.uniqueWalletCount - a.uniqueWalletCount)
+      .slice(0, 8);
+
+    // NEW: Wallet performance metrics
+    const walletStats = new Map<string, {
+      buyCount: number;
+      sellCount: number;
+      tokens: Set<string>;
+    }>();
+    
+    transfers.forEach((t) => {
+      if (!walletStats.has(t.walletAddress)) {
+        walletStats.set(t.walletAddress, {
+          buyCount: 0,
+          sellCount: 0,
+          tokens: new Set(),
+        });
+      }
+      const stats = walletStats.get(t.walletAddress)!;
+      if (t.side === "BUY") stats.buyCount++;
+      else stats.sellCount++;
+      stats.tokens.add(t.tokenAddress);
+    });
+
+    const walletPerformance = Array.from(walletStats.entries())
+      .map(([wallet, stats]) => ({
+        walletAddress: wallet,
+        shortAddress: `${wallet.slice(0, 6)}...${wallet.slice(-4)}`,
+        totalTransactions: stats.buyCount + stats.sellCount,
+        buyCount: stats.buyCount,
+        sellCount: stats.sellCount,
+        uniqueTokensTraded: stats.tokens.size,
+        buyToSellRatio: stats.sellCount > 0 
+          ? (stats.buyCount / stats.sellCount).toFixed(2)
+          : stats.buyCount.toString(),
+      }))
+      .sort((a, b) => b.totalTransactions - a.totalTransactions)
+      .slice(0, 10);
+
+    // NEW: Transaction distribution over time (hourly for last 12h)
+    const transactionDistribution = Array.from(hourlyMap.values())
+      .sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime())
+      .map((data) => ({
+        timestamp: data.timestamp.toISOString(),
+        time: format(data.timestamp, "HH:mm"),
+        buy: data.buys,
+        sell: data.sells,
+        total: data.total,
+      }));
+
+    // NEW: Token diversity over time (tokens traded per hour)
+    const tokenDiversityMap = new Map<number, Set<string>>();
+    for (let i = 11; i >= 0; i--) {
+      const hourDate = startOfHour(subHours(now, i));
+      const key = hourDate.getTime();
+      tokenDiversityMap.set(key, new Set());
+    }
+    
+    recentTransfers.forEach((t) => {
+      const hourDate = startOfHour(new Date(t.timestamp));
+      const key = hourDate.getTime();
+      if (tokenDiversityMap.has(key)) {
+        tokenDiversityMap.get(key)!.add(t.tokenAddress);
+      }
+    });
+
+    const tokenDiversity = Array.from(tokenDiversityMap.entries())
+      .sort((a, b) => a[0] - b[0])
+      .map(([timestamp, tokens]) => ({
+        time: format(new Date(timestamp), "HH:mm"),
+        uniqueTokens: tokens.size,
+      }));
+
     return {
       buyCount: buys.length,
       sellCount: sells.length,
@@ -154,6 +256,10 @@ export default function AnalyticsPage() {
       hourlyData,
       topWallets,
       topTokens,
+      topTokensByUniqueWallets,
+      walletPerformance,
+      transactionDistribution,
+      tokenDiversity,
     };
   }, [transfers]);
 
@@ -166,13 +272,13 @@ export default function AnalyticsPage() {
     setIsRefreshing(true);
     try {
       const now = new Date();
-      const twelveHoursAgo = subHours(now, 12);
+      const twentyFourHoursAgo = subHours(now, 24);
       await Promise.all([
         fetchStats(),
         fetchTransfers({
-          startTime: twelveHoursAgo.toISOString(),
+          startTime: twentyFourHoursAgo.toISOString(),
           endTime: now.toISOString(),
-        })
+        }),
       ]);
       toast.success("Analytics refreshed");
     } catch (err) {
@@ -340,14 +446,27 @@ export default function AnalyticsPage() {
                     tick={{ fontSize: 9, fontFamily: "monospace" }}
                     width={100}
                   />
-                  <RechartsTooltip 
+                  <RechartsTooltip
+                    wrapperStyle={{ pointerEvents: "auto" }}
+                    allowEscapeViewBox={{ x: true, y: true }}
                     content={({ active, payload }) => {
                       if (active && payload && payload.length) {
                         const data = payload[0].payload;
                         return (
-                          <div className="bg-card border rounded-lg p-3 shadow-lg">
-                            <p className="font-mono text-xs break-all max-w-xs">{data.fullWallet}</p>
-                            <p className="text-sm font-medium mt-1">{data.count} transactions</p>
+                          <div className="bg-card border rounded-lg p-3 shadow-lg pointer-events-auto">
+                            <div className="flex items-start justify-between gap-2 mb-2">
+                              <p className="font-mono text-xs break-all max-w-xs">{data.fullWallet}</p>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleCopyAddress(data.fullWallet, "wallet");
+                                }}
+                                className="p-1 hover:bg-muted rounded transition-colors flex-shrink-0"
+                              >
+                                <Copy className="h-3 w-3" />
+                              </button>
+                            </div>
+                            <p className="text-sm font-medium">{data.count} transactions</p>
                           </div>
                         );
                       }
@@ -382,14 +501,27 @@ export default function AnalyticsPage() {
                     tick={{ fontSize: 9, fontFamily: "monospace" }}
                     width={100}
                   />
-                  <RechartsTooltip 
+                  <RechartsTooltip
+                    wrapperStyle={{ pointerEvents: "auto" }}
+                    allowEscapeViewBox={{ x: true, y: true }}
                     content={({ active, payload }) => {
                       if (active && payload && payload.length) {
                         const data = payload[0].payload;
                         return (
-                          <div className="bg-card border rounded-lg p-3 shadow-lg">
-                            <p className="font-mono text-xs break-all max-w-xs">{data.fullToken}</p>
-                            <p className="text-sm font-medium mt-1">{data.count} transactions</p>
+                          <div className="bg-card border rounded-lg p-3 shadow-lg pointer-events-auto">
+                            <div className="flex items-start justify-between gap-2 mb-2">
+                              <p className="font-mono text-xs break-all max-w-xs">{data.fullToken}</p>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleCopyAddress(data.fullToken, "token");
+                                }}
+                                className="p-1 hover:bg-muted rounded transition-colors flex-shrink-0"
+                              >
+                                <Copy className="h-3 w-3" />
+                              </button>
+                            </div>
+                            <p className="text-sm font-medium">{data.count} transactions</p>
                           </div>
                         );
                       }
@@ -407,6 +539,226 @@ export default function AnalyticsPage() {
             </CardContent>
           </Card>
         </div>
+
+        {/* Charts Row 3 - Token Diversity Over Time */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Token Diversity (Last 12 Hours)</CardTitle>
+            <CardDescription>Number of unique tokens traded per hour</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={300}>
+              <LineChart data={analyticsData.tokenDiversity}>
+                <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                <XAxis
+                  dataKey="time"
+                  tick={{ fontSize: 12 }}
+                  tickLine={false}
+                />
+                <YAxis tick={{ fontSize: 12 }} tickLine={false} />
+                <RechartsTooltip
+                  contentStyle={{
+                    backgroundColor: "hsl(var(--card))",
+                    border: "1px solid hsl(var(--border))",
+                    borderRadius: "8px",
+                  }}
+                />
+                <Line
+                  type="monotone"
+                  dataKey="uniqueTokens"
+                  name="Unique Tokens"
+                  stroke="#10b981"
+                  strokeWidth={2}
+                  dot={{ r: 4 }}
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+
+        {/* Charts Row 4 - Transaction Distribution & Top Tokens */}
+        <div className="grid gap-6 lg:grid-cols-2">
+          {/* Transaction Distribution Over Time */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Transaction Distribution (Last 12 Hours)</CardTitle>
+              <CardDescription>Buy vs Sell volume over time</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <ResponsiveContainer width="100%" height={300}>
+                <AreaChart data={analyticsData.transactionDistribution}>
+                  <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                  <XAxis
+                    dataKey="time"
+                    tick={{ fontSize: 12 }}
+                    tickLine={false}
+                  />
+                  <YAxis tick={{ fontSize: 12 }} tickLine={false} />
+                  <RechartsTooltip
+                    contentStyle={{
+                      backgroundColor: "hsl(var(--card))",
+                      border: "1px solid hsl(var(--border))",
+                      borderRadius: "8px",
+                    }}
+                  />
+                  <Legend />
+                  <Area
+                    type="monotone"
+                    dataKey="buy"
+                    name="Buy Orders"
+                    stackId="1"
+                    stroke={CHART_COLORS.buy}
+                    fill={CHART_COLORS.buy}
+                    fillOpacity={0.6}
+                  />
+                  <Area
+                    type="monotone"
+                    dataKey="sell"
+                    name="Sell Orders"
+                    stackId="1"
+                    stroke={CHART_COLORS.sell}
+                    fill={CHART_COLORS.sell}
+                    fillOpacity={0.6}
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+
+          {/* Top Tokens by Unique Wallets */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Top Tokens by Unique Traders</CardTitle>
+              <CardDescription>Tokens with most unique wallet interactions</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <ResponsiveContainer width="100%" height={300}>
+                <BarChart data={analyticsData.topTokensByUniqueWallets} layout="vertical">
+                  <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                  <XAxis type="number" tick={{ fontSize: 12 }} />
+                  <YAxis
+                    dataKey="shortAddress"
+                    type="category"
+                    tick={{ fontSize: 9, fontFamily: "monospace" }}
+                    width={85}
+                  />
+                  <RechartsTooltip
+                    wrapperStyle={{ pointerEvents: "auto" }}
+                    allowEscapeViewBox={{ x: true, y: true }}
+                    content={({ active, payload }) => {
+                      if (active && payload && payload.length) {
+                        const data = payload[0].payload;
+                        return (
+                          <div className="bg-card border rounded-lg p-3 shadow-lg pointer-events-auto">
+                            <div className="flex items-start justify-between gap-2 mb-2">
+                              <p className="font-mono text-xs break-all max-w-xs">{data.tokenAddress}</p>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleCopyAddress(data.tokenAddress, "token");
+                                }}
+                                className="p-1 hover:bg-muted rounded transition-colors flex-shrink-0"
+                              >
+                                <Copy className="h-3 w-3" />
+                              </button>
+                            </div>
+                            <p className="text-sm font-medium">{data.uniqueWalletCount} unique wallets</p>
+                          </div>
+                        );
+                      }
+                      return null;
+                    }}
+                  />
+                  <Bar
+                    dataKey="uniqueWalletCount"
+                    name="Unique Wallets"
+                    fill="#10b981"
+                    radius={[0, 4, 4, 0]}
+                  />
+                </BarChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Charts Row 5 - Wallet Performance Scatter */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Wallet Performance Analysis</CardTitle>
+            <CardDescription>
+              Top wallets by activity - bubble size represents total transactions
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={350}>
+              <ScatterChart
+                margin={{ top: 20, right: 20, bottom: 20, left: 20 }}
+              >
+                <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                <XAxis
+                  type="number"
+                  dataKey="buyCount"
+                  name="Buy Orders"
+                  tick={{ fontSize: 12 }}
+                  label={{ value: "Buy Orders", position: "insideBottom", offset: -10 }}
+                />
+                <YAxis
+                  type="number"
+                  dataKey="sellCount"
+                  name="Sell Orders"
+                  tick={{ fontSize: 12 }}
+                  label={{ value: "Sell Orders", angle: -90, position: "insideLeft" }}
+                />
+                <ZAxis
+                  type="number"
+                  dataKey="totalTransactions"
+                  range={[50, 400]}
+                  name="Total Txns"
+                />
+                <RechartsTooltip
+                  cursor={{ strokeDasharray: "3 3" }}
+                  wrapperStyle={{ pointerEvents: "auto" }}
+                  allowEscapeViewBox={{ x: true, y: true }}
+                  content={({ active, payload }) => {
+                    if (active && payload && payload.length) {
+                      const data = payload[0].payload;
+                      return (
+                        <div className="bg-card border rounded-lg p-3 shadow-lg pointer-events-auto">
+                          <div className="flex items-start justify-between gap-2 mb-2">
+                            <p className="font-mono text-xs break-all max-w-xs">{data.walletAddress}</p>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleCopyAddress(data.walletAddress, "wallet");
+                              }}
+                              className="p-1 hover:bg-muted rounded transition-colors flex-shrink-0"
+                            >
+                              <Copy className="h-3 w-3" />
+                            </button>
+                          </div>
+                          <div className="space-y-1 text-sm">
+                            <p><span className="text-green-600">Buy:</span> {data.buyCount}</p>
+                            <p><span className="text-red-600">Sell:</span> {data.sellCount}</p>
+                            <p><span className="font-medium">Total:</span> {data.totalTransactions}</p>
+                            <p><span className="font-medium">Tokens:</span> {data.uniqueTokensTraded}</p>
+                            <p><span className="font-medium">Ratio:</span> {parseFloat(data.buyToSellRatio).toFixed(2)}</p>
+                          </div>
+                        </div>
+                      );
+                    }
+                    return null;
+                  }}
+                />
+                <Scatter
+                  name="Wallets"
+                  data={analyticsData.walletPerformance}
+                  fill="#8b5cf6"
+                  fillOpacity={0.6}
+                />
+              </ScatterChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
       </div>
     </div>
   );

@@ -80,7 +80,6 @@ export default function ConfigPage() {
         minAmount: config.minAmount,
         coordinatedWindowMinutes: config.coordinatedWindowMinutes,
         coordinatedMinWallets: config.coordinatedMinWallets,
-        dedupBySignatureOnly: config.dedupBySignatureOnly,
         debugEvents: config.debugEvents,
         debugEventsVerbose: config.debugEventsVerbose,
       });
@@ -119,7 +118,6 @@ export default function ConfigPage() {
         minAmount: config.minAmount,
         coordinatedWindowMinutes: config.coordinatedWindowMinutes,
         coordinatedMinWallets: config.coordinatedMinWallets,
-        dedupBySignatureOnly: config.dedupBySignatureOnly,
         debugEvents: config.debugEvents,
         debugEventsVerbose: config.debugEventsVerbose,
       });
@@ -377,31 +375,6 @@ export default function ConfigPage() {
                       Minimum transfer amount threshold to process events
                     </p>
                   </div>
-
-                  <Separator />
-
-                  <div className="flex items-center justify-between">
-                    <div className="space-y-0.5">
-                      <Label
-                        htmlFor="dedupBySignatureOnly"
-                        className="flex items-center gap-2"
-                      >
-                        <Shield className="h-4 w-4 text-muted-foreground" />
-                        Dedup by Signature Only
-                      </Label>
-                      <p className="text-xs text-muted-foreground">
-                        If enabled, deduplicates by signature only instead of
-                        wallet+token+signature
-                      </p>
-                    </div>
-                    <Switch
-                      id="dedupBySignatureOnly"
-                      checked={formState.dedupBySignatureOnly ?? false}
-                      onCheckedChange={(checked) =>
-                        handleChange("dedupBySignatureOnly", checked)
-                      }
-                    />
-                  </div>
                 </>
               )}
             </CardContent>
@@ -565,11 +538,6 @@ export default function ConfigPage() {
                   Min Wallets: {config.coordinatedMinWallets}
                 </Badge>
                 <Badge variant="outline">Min Amount: {config.minAmount}</Badge>
-                <Badge
-                  variant={config.dedupBySignatureOnly ? "default" : "outline"}
-                >
-                  Dedup: {config.dedupBySignatureOnly ? "Signature" : "Full"}
-                </Badge>
                 {/* <Badge variant={config.debugEvents ? "destructive" : "outline"}>
                   Debug: {config.debugEvents ? "ON" : "OFF"}
                 </Badge>
